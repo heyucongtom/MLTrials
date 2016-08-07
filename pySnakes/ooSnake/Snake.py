@@ -211,6 +211,7 @@ class Game(object):
         
         self.snake = snake
         self.board = board
+        self.label_array = [[None for i in range(self.board.width)] for j in range(self.board.height)]
         self.win = win or tk.Tk()
 
     def run(self):
@@ -218,20 +219,34 @@ class Game(object):
         self.win.geometry('{0}x{1}'.format(APP_WIN_WIDTH, APP_WIN_HEIGHT))
         self.win.config(bg=APP_BACK_GND)
         self.drawBoard()
+        self.drawSnake()
 
         while True:
+            time.sleep(1)
+            self.snake.move(False)
             self.drawSnake()
-            self.drawFood()
-            self.win.mainloop()
+            # self.drawFood()
+            self.win.update()
+            
 
-    def _drawGrids(self, grids, color, px=3, py=3):
+    def _drawGrids(self, grids, color, tail_pos=None, px=3, py=3):
+
+        # Option for snake's tail;
+        if tail_pos:
+            i, j = tail_pos
+            self.label_array[i+1][j].configure(bg = APP_BACK_GND)
+            self.label_array[i-1][j].configure(bg = APP_BACK_GND)
+            self.label_array[i][j+1].configure(bg = APP_BACK_GND)
+            self.label_array[i][j-1].configure(bg = APP_BACK_GND)
+
         for i, j in grids:
-            L = tk.Label(self.win, text = "    ", bg = color, padx=px, pady=py)
-            L.grid(row=i, column=j)
+            self.label_array[i][j].configure(bg = color)
+
 
     def drawSnake(self):
         color = self.snake.getColor()
-        self._drawGrids(self.snake.getPositions(), color)
+        pos_lst = self.snake.getPositions()
+        self._drawGrids(pos_lst, color, tail_pos = pos_lst[0])
 
     def drawFood(self):
         color = FOOD_COLOR
@@ -243,15 +258,8 @@ class Game(object):
             for j in range(self.board.height):
                 color = board_config[i][j].getColor()
                 L = tk.Label(self.win, text = "    ", bg = color, padx=3, pady=3)
+                self.label_array[i][j] = L
                 L.grid(row=i, column=j)
-
-    def sleep(self, secs):
-        if self.win == None:
-            time.sleep(secs)
-        else:
-            self.win.update_idletasks()
-            self.win.after(int(1000 * secs), self.win.quit)
-            self.win.mainloop()
 
 
 import unittest
