@@ -102,9 +102,6 @@ class Board(object):
     def height(self):
         return self._height
 
-    def getHeight(self):
-        return self._height
-
     def _cellIndexToPosition(self, index):
         x = index / self._height
         y = index % self._height
@@ -114,7 +111,7 @@ class Board(object):
         self._data[x][y].addFood()
         self._foodPosSet.add((x, y))
 
-    def _removeFoodFromGrid(self, x, y):
+    def removeFoodFromGrid(self, x, y):
         self._data[x][y].removeFood()
         self._foodPosSet.remove((x, y))
     
@@ -141,33 +138,46 @@ class Snake:
         self._direction = _direction
         self._speed = _speed
         self._color = color
+        self._size = len(self._pos_lst)
 
-    def getSpeed(self):
+    @property
+    def speed(self):
         return self._speed
 
-    def getDirection(self):
+    @property
+    def size(self):
+        return self._size
+
+    @property
+    def direction(self):
         return self._direction
 
-    def getColor(self):
+    def head(self):
+        return self._pos_lst[self.size - 1]
+
+    @property
+    def color(self):
         return self._color
 
-    def setDirection(self, keystroke):
+    def _setDirection(self, keystroke):
         pass
-        
 
-    def move(self, food):
+    def move(self, food=False):
 
         """ 
         Move towards one direction, for one step. 
         Only need to record the routine of the snake head. The rest just follows.
         """
-        x, y = self._pos_lst[self._length - 1]
+        x, y = self._pos_lst[self.size - 1]
         new_x, new_y = self._move_by_direction(x, y, self._direction, self._speed)
 
         self._pos_lst.append((new_x, new_y))
+        self.size += 1
         if not food:
+            self.size -= 1
             self._pos_lst.pop(0)
         return self
+
 
     def _move_by_direction(self, x, y, direction, speed):
 
@@ -188,12 +198,13 @@ class Snake:
             print("Invalid direction parameter.")
             return None
 
+    def getNextStep(self):
+        x, y = self._pos_lst[self.size - 1]
+        new_x, new_y = self._move_by_direction(x, y, self._direction, self._speed)
+        return new_x, new_y
+
     def getPositions(self):
         return self._pos_lst
-
-    @property
-    def _length(self):
-        return len(self._pos_lst)
 
     def _legal_grid(self, x, y):
         board = self._board
@@ -222,12 +233,18 @@ class Game(object):
         self.drawSnake()
 
         while True:
-            time.sleep(1)
-            self.snake.move(False)
+            time.sleep(0.5)
+            self._runGameStep()
             self.drawSnake()
-            # self.drawFood()
+            self.drawFood()
             self.win.update()
-            
+    
+    def _runGameStep(self, step=1):
+        x, y = self.snake.getNextStep();
+        food_var = (self.board[x][y].getFood() is not None)
+        self.snake.move(food_var)
+        if food_var:
+            self.board.removeFoodFromGrid(x, y)
 
     def _drawGrids(self, grids, color, tail_pos=None, px=3, py=3):
 
@@ -244,7 +261,7 @@ class Game(object):
 
 
     def drawSnake(self):
-        color = self.snake.getColor()
+        color = self.snake.color
         pos_lst = self.snake.getPositions()
         self._drawGrids(pos_lst, color, tail_pos = pos_lst[0])
 
@@ -270,9 +287,9 @@ class TestSnake(unittest.TestCase):
     def testSnakeInit(self):
 
         snake1 = Snake()
-        self.assertEqual(snake1.getSpeed(), 1)
+        self.assertEqual(snake1.speed, 1)
         self.assertEqual(snake1.getPositions(), [(0, 0), (0, 1)])
-        self.assertEqual(snake1.getDirection(), Direction.Right)
+        self.assertEqual(snake1.direction, Direction.Right)
 
     def testSnakeMove(self):
 
@@ -296,14 +313,14 @@ class TestSnake(unittest.TestCase):
 
 class TestBoard(unittest.TestCase):
 
-    def testBoardConstruction(self):
+    # def testBoardConstruction(self):
 
-        board1 = Board(width = 20, height = 20, config_str = test_str)
-        self.assertEqual(type(board1[1][0]), Wall)
-        self.assertEqual(board1[1][1].isSafe(), False)
-        self.assertEqual(board1[2][1].isSafe(), True)
-        self.assertEqual(board1[1][3].getColor(), "black")
-        self.assertEqual(board1[0][3].getColor(), "white")
+    #     board1 = Board(width = 20, height = 20, config_str = test_str)
+    #     self.assertEqual(type(board1[1][0]), Wall)
+    #     self.assertEqual(board1[1][1].isSafe(), False)
+    #     self.assertEqual(board1[2][1].isSafe(), True)
+    #     self.assertEqual(board1[1][3].color, "black")
+    #     self.assertEqual(board1[0][3].color, "white")
 
     def testAddAndRemoveFood(self):
 
@@ -312,7 +329,7 @@ class TestBoard(unittest.TestCase):
         board2._addFoodToGrid(4,6)
         self.assertEqual((board2._data[3][5].getFood() is not None), True)
         self.assertEqual(((3,5) in board2._foodPosSet), True)
-        board2._removeFoodFromGrid(3,5)
+        board2.removeFoodFromGrid(3,5)
         self.assertEqual(((3,5) in board2._foodPosSet), False)
         self.assertEqual((board2._data[3][5].getFood() is None), True)
 
@@ -321,6 +338,7 @@ if __name__ == '__main__':
     # unittest.main()
     board = Board(width = 20, height = 20, config_str = test_str)
     board._addFoodToGrid(3,5)
+    board._addFoodToGrid(1,6)
     board._addFoodToGrid(4,6)
     snake = Snake(_pos_lst = [(0, 1), (0, 2), (0, 3), (1, 3)])
     g = Game(snake, board)
