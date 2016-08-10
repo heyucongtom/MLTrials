@@ -1,3 +1,10 @@
+"""
+# inspired by py-wget module.
+# url -> "https://github.com/phith0n/py-wget/blob/master/py-wget.py"
+# Adding multiple thread control and more functions.
+"""
+
+
 import requests
 import re
 import os
