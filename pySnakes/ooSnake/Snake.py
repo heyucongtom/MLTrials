@@ -58,6 +58,13 @@ class Food(object):
     def __init__(self):
         pass
 
+class Direction(object):
+
+    Right = 'Right'
+    Left = 'Left'
+    Up = 'Up'
+    Down = 'Down'
+
 
 class Board(object):
     """
@@ -120,13 +127,6 @@ class Board(object):
 
     def __setitem__(self, key, item):
         self._data[key] = item
-
-class Direction(object):
-
-    Right = 'Right'
-    Left = 'Left'
-    Up = 'Up'
-    Down = 'Down'
 
 class Snake:
 
