@@ -9,16 +9,14 @@ import requests
 import re
 import os
 import time
-
-task_url = "http://jaist.dl.sourceforge.net/project/boost/boost/1.61.0/boost_1_61_0.tar.bz2"
 test_url = "https://github.com/phith0n/py-wget/blob/master/py-wget.py"
-
+task_url = "http://nchc.dl.sourceforge.net/project/matplotlib/matplotlib-toolkits/basemap-1.0.7/basemap-1.0.7.tar.gz"
 class Downloader(object):
 
 	def __init__(self, config = {}):
 
 		self.config = {
-			'block': int(config['block'] if 'block' in config else 1024)
+			'block': int(config['block'] if 'block' in config else 10240)
 		}
 		self.total = 0
 		self.size = 0
@@ -34,31 +32,34 @@ class Downloader(object):
 		total = self.total
 		temp_filename = "size_tmp_" + local_filename
 
-		r = requests.get(url, stream=True, headers = headers)
+		
 
 		# Getting file size #
-		if (self.support_continue(url)):
-			try:
-				with open(temp_filename, "rb") as f:
-					self.size = int(f.read())
-					print("Current size is: {0}".format(self.size))
-					size = self.size+1
-			except Exception as e:
-				print(e)
-				with open(temp_filename, "wb") as f:
-					pass
-			finally:
-				headers['Range'] = "bytes=%d-" % (self.size, )
-		else:
-			print("Continue: Not supported.")
-			self.size = 0
+		self.support_continue(url)
+		try:
+			with open(temp_filename, "rb") as f:
+				self.size = int(f.read())
+				print("Current size is: {0}".format(self.size))
+				size = self.size+1
+		except Exception as e:
+			print(e)
+			with open(temp_filename, "wb") as f:
+				pass
+		finally:
+			headers['Range'] = "bytes=%d-" % (self.size, )
+		# else:
+		# 	print("Continue: Not supported.")
+		# 	headers['Range'] = "bytes=%d-" % (self.size, )
+		# 	self.size = 0
 
 		# Done getting file size #
 		# ---------------- #
 		# Get file size #
 
+		r = requests.get(url, stream=True, headers = headers)
+
 		if self.total > 0:
-			print(" [+] Size: {0}KB".format(total/1024))
+			print(" [+] Size: {0}KB".format(total/10240))
 		else:
 			print(" [+] Size: None")
 
@@ -82,7 +83,7 @@ class Downloader(object):
 				if (os.path.exists(temp_filename)):
 					os.remove(temp_filename)
 				spend = int(time.time() - start_t)
-				speed = int((size - self.size) / 1024 / (spend+0.01))
+				speed = int((size - self.size) / 10240 / (spend+0.01))
 				print("Download finished with speed {0}KB/s".format(speed))
 			except Exception as e:
 				print(e)
@@ -116,4 +117,4 @@ class Downloader(object):
 		return False
 
 d = Downloader()
-d.download(test_url)
+d.download(task_url)

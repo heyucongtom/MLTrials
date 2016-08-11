@@ -1,5 +1,6 @@
 import Tkinter as tk
 import time
+import sys
 
 APP_WIN_XPOS = 100
 APP_WIN_YPOS = 100
@@ -130,7 +131,7 @@ class Board(object):
 
 class Snake:
 
-    def __init__(self, _speed = 1, _pos_lst = None, _direction = Direction.Right, color=SNAKE_COLOR):
+    def __init__(self, _board = None, _speed = 1, _pos_lst = None, _direction = Direction.Right, color=SNAKE_COLOR):
         if _pos_lst:
             self._pos_lst = _pos_lst
         else:
@@ -139,6 +140,12 @@ class Snake:
         self._speed = _speed
         self._color = color
         self._size = len(self._pos_lst)
+        self._board = board
+        self._prevTail = None
+
+    @property
+    def board(self):
+        return self._board
 
     @property
     def speed(self):
@@ -154,6 +161,9 @@ class Snake:
 
     def head(self):
         return self._pos_lst[self.size - 1]
+
+    def prevTail(self):
+        return self._prevTail
 
     @property
     def color(self):
@@ -173,9 +183,12 @@ class Snake:
 
         self._pos_lst.append((new_x, new_y))
         self.size += 1
+
         if not food:
             self.size -= 1
+            self._prevTail = self._pos_lst[0]
             self._pos_lst.pop(0)
+
         return self
 
 
@@ -185,15 +198,17 @@ class Snake:
         Given direction and current x, y.
         return a new (x, y) pair.
         """
+        w = self.board.width
+        h = self.board.height
 
         if direction == Direction.Left:
-            return x, y - speed
+            return x % w, (y - speed) % h
         if direction == Direction.Up:
-            return x - speed, y
+            return (x - speed) % w, y % h
         if direction == Direction.Right:
-            return x, y + speed
+            return x % w, (y + speed) % h
         if direction == Direction.Down:
-            return x + speed, y
+            return (x + speed) % w, y % h
         else:
             print("Invalid direction parameter.")
             return None
@@ -233,28 +248,45 @@ class Game(object):
         self.drawSnake()
 
         while True:
-            time.sleep(0.5)
+            time.sleep(0.3)
             self._runGameStep()
             self.drawSnake()
             self.drawFood()
             self.win.update()
+
+    def _isEnd(self):
+
+        # Case 1: Snake hit itself:
+        _isEnd = False
+        if self.snake.head() in self.snake.getPositions()[0:self.snake.size - 1]:
+            return True
+
+        # Case 2: Snake hit wall:
+        x, y = self.snake.head()
+        if not self.board[x][y].isSafe():
+            return True
+
     
     def _runGameStep(self, step=1):
         x, y = self.snake.getNextStep();
         food_var = (self.board[x][y].getFood() is not None)
         self.snake.move(food_var)
+        x, y = self.snake.head()
+        if self._isEnd():
+            print("Game ended.")
+            sys.exit()
         if food_var:
             self.board.removeFoodFromGrid(x, y)
 
     def _drawGrids(self, grids, color, tail_pos=None, px=3, py=3):
 
         # Option for snake's tail;
+        w = self.board.width
+        h = self.board.height
         if tail_pos:
-            i, j = tail_pos
-            self.label_array[i+1][j].configure(bg = APP_BACK_GND)
-            self.label_array[i-1][j].configure(bg = APP_BACK_GND)
-            self.label_array[i][j+1].configure(bg = APP_BACK_GND)
-            self.label_array[i][j-1].configure(bg = APP_BACK_GND)
+            x, y = tail_pos
+            orig_color = self.board[x][y].getColor()
+            self.label_array[x][y].configure(bg = orig_color)
 
         for i, j in grids:
             self.label_array[i][j].configure(bg = color)
@@ -263,7 +295,7 @@ class Game(object):
     def drawSnake(self):
         color = self.snake.color
         pos_lst = self.snake.getPositions()
-        self._drawGrids(pos_lst, color, tail_pos = pos_lst[0])
+        self._drawGrids(pos_lst, color, tail_pos = self.snake.prevTail())
 
     def drawFood(self):
         color = FOOD_COLOR
@@ -280,7 +312,7 @@ class Game(object):
 
 
 import unittest
-test_str = "..........................................................................................................................................................##########............................................................................................................................................................................................................................................"
+test_str = ".................................#.......##########.......................................................................................................##########............................................................................................................................................................................................................................................"
 
 class TestSnake(unittest.TestCase): 
 
@@ -340,7 +372,7 @@ if __name__ == '__main__':
     board._addFoodToGrid(3,5)
     board._addFoodToGrid(1,6)
     board._addFoodToGrid(4,6)
-    snake = Snake(_pos_lst = [(0, 1), (0, 2), (0, 3), (1, 3)])
+    snake = Snake(_pos_lst = [(0, 1), (0, 2), (0, 3), (1, 3)], _board = board)
     g = Game(snake, board)
     g.run()
     board._addFoodToGrid(5,7)
