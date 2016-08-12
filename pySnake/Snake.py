@@ -66,6 +66,7 @@ class Direction(object):
     Up = 'Up'
     Down = 'Down'
 
+DIR_DICT = {'d': Direction.Right, 'a':Direction.Left, 'w':Direction.Up, 's':Direction.Down}
 
 class Board(object):
     """
@@ -169,8 +170,8 @@ class Snake:
     def color(self):
         return self._color
 
-    def _setDirection(self, keystroke):
-        pass
+    def setDirection(self, direction):
+        self._direction = direction
 
     def move(self, food=False):
 
@@ -191,6 +192,11 @@ class Snake:
 
         return self
 
+    def bfs(self):
+        """
+        Using breadth first to get next move until get food
+        """
+        pass
 
     def _move_by_direction(self, x, y, direction, speed):
 
@@ -241,11 +247,18 @@ class Game(object):
         self.win = win or tk.Tk()
 
     def run(self):
+
+        def snake_action(event):
+            if event.char in DIR_DICT:
+                direction = DIR_DICT[event.char]
+                self.snake.setDirection(direction)
+
         self.win.geometry('+{0}+{1}'.format(APP_WIN_XPOS, APP_WIN_YPOS))
         self.win.geometry('{0}x{1}'.format(APP_WIN_WIDTH, APP_WIN_HEIGHT))
         self.win.config(bg=APP_BACK_GND)
         self.drawBoard()
         self.drawSnake()
+        self.win.bind('<Key>', snake_action)
 
         while True:
             time.sleep(0.3)
@@ -266,6 +279,9 @@ class Game(object):
         if not self.board[x][y].isSafe():
             return True
 
+    def _listenToKey(self):
+        pass
+        
     
     def _runGameStep(self, step=1):
         x, y = self.snake.getNextStep();
@@ -312,7 +328,7 @@ class Game(object):
 
 
 import unittest
-test_str = ".................................#.......##########.......................................................................................................##########............................................................................................................................................................................................................................................"
+test_str = ".........................................##########.......................................................................................................##########............................................................................................................................................................................................................................................"
 
 class TestSnake(unittest.TestCase): 
 
@@ -381,10 +397,3 @@ if __name__ == '__main__':
 
 
 # heyucong
-
-
-
-
-
-
-
