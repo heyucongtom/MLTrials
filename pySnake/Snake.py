@@ -1,4 +1,4 @@
-import Tkinter as tk
+import tkinter as tk
 import time
 import sys
 
@@ -66,6 +66,17 @@ class Direction(object):
     Up = 'Up'
     Down = 'Down'
 
+    @classmethod
+    def reverse(cls, direction):
+        if direction == cls.Right:
+            return cls.Left
+        if direction == cls.Left:
+            return cls.Right
+        if direction == cls.Up:
+            return cls.Down
+        if direction == cls.Down:
+            return cls.Up
+
 DIR_DICT = {'d': Direction.Right, 'a':Direction.Left, 'w':Direction.Up, 's':Direction.Down}
 
 class Board(object):
@@ -87,7 +98,7 @@ class Board(object):
         self._data = [[None for i in range(width)] for j in range(height)]
         assert(len(config_str) == self._width * self._height), "Wrong config params."
         for i, ch in enumerate(config_str):
-            x, y = self._cellIndexToPosition(i)
+            x, y = self.cellIndexToPosition(i)
             if ch == ".":
                 self._data[x][y] = Space()
             if ch == "#":
@@ -111,10 +122,13 @@ class Board(object):
     def height(self):
         return self._height
 
-    def _cellIndexToPosition(self, index):
-        x = index / self._height
-        y = index % self._height
+    def cellIndexToPosition(self, index):
+        x = index // self.width
+        y = index % self.height
         return x, y
+
+    def positionToCellIndex(self, x, y):
+        return x * self.width + y
 
     def _addFoodToGrid(self, x, y):
         self._data[x][y].addFood()
@@ -130,9 +144,26 @@ class Board(object):
     def __setitem__(self, key, item):
         self._data[key] = item
 
+    def getNeighborsList(self, x, y):
+        left = ((x-1) % self.width, y)
+        right = ((x+1) % self.width, y)
+        up = (x, (y-1) % self.height)
+        down = (x, (y+1) % self.height)
+        lst = [left, right, up, down]
+        return lst
+
+    def getSafeNeighborsList(self, x, y):
+        neighbors = self.getNeighborsList(x, y)
+        ret = []
+        for n in neighbors:
+            if self[x][y].isSafe():
+                ret.append(n)
+        return ret
+
+
 class Snake:
 
-    def __init__(self, _board = None, _speed = 1, _pos_lst = None, _direction = Direction.Right, color=SNAKE_COLOR):
+    def __init__(self, _board, _speed = 1, _pos_lst = None, _direction = Direction.Right, color=SNAKE_COLOR):
         if _pos_lst:
             self._pos_lst = _pos_lst
         else:
@@ -141,7 +172,7 @@ class Snake:
         self._speed = _speed
         self._color = color
         self._size = len(self._pos_lst)
-        self._board = board
+        self._board = _board
         self._prevTail = None
 
     @property
@@ -183,20 +214,58 @@ class Snake:
         new_x, new_y = self._move_by_direction(x, y, self._direction, self._speed)
 
         self._pos_lst.append((new_x, new_y))
-        self.size += 1
+        self._size += 1
 
         if not food:
-            self.size -= 1
+            self._size -= 1
             self._prevTail = self._pos_lst[0]
             self._pos_lst.pop(0)
 
         return self
 
-    def bfs(self):
+    def bfs(self, start, target):
         """
         Using breadth first to get next move until get food
+        return a map recording path
         """
-        pass
+        import queue
+        prev = [0 for i in range(self.board.width * self.board.height)]
+        visited = set()
+        
+        q = queue.Queue()
+        q.put(start)
+        visited.add(start)
+        index_n = self.board.positionToCellIndex(*start)
+        prev[index_n] = (start, 0)
+        found = False
+        while not q.empty():
+            node = q.get()
+            index_n = self.board.positionToCellIndex(*node)
+            neighbors = self.board.getSafeNeighborsList(*node)
+            for neighbor in neighbors:
+                if neighbor not in visited:
+                    # For bfs we can skip distance check.
+                    index = self.board.positionToCellIndex(*neighbor)
+                    dist = prev[index_n][1] + 1
+                    prev[index] = (node, dist)
+                    visited.add(neighbor)
+                    q.put(neighbor)
+            if target in visited:
+                return prev
+        return None
+
+    def reconstruct_path_lst(self, lst, start, target):
+
+        index_s = self.board.positionToCellIndex(*start)
+        index_t = self.board.positionToCellIndex(*target)
+        path = [target]
+        while index_t != index_s:
+            node = lst[index_t]
+            prev = node[0]
+            path.append(prev)
+            index_t = self.board.positionToCellIndex(*prev)
+        return path
+
 
     def _move_by_direction(self, x, y, direction, speed):
 
@@ -334,14 +403,17 @@ class TestSnake(unittest.TestCase):
 
     def testSnakeInit(self):
 
-        snake1 = Snake()
+        
+        board = Board(width=20, height=20, config_str=test_str)
+        snake1 = Snake(board)
         self.assertEqual(snake1.speed, 1)
         self.assertEqual(snake1.getPositions(), [(0, 0), (0, 1)])
         self.assertEqual(snake1.direction, Direction.Right)
 
     def testSnakeMove(self):
 
-        snake2 = Snake()
+        board = Board(width=20, height=20, config_str=test_str)
+        snake2 = Snake(board)
         snake2.move(food = False)
         self.assertEqual(snake2.getPositions(), [(0, 1), (0, 2)])
         snake2.move(food = True)
@@ -350,7 +422,8 @@ class TestSnake(unittest.TestCase):
         self.assertEqual(snake2.getPositions(), [(0, 2), (0, 3), (0, 4)])
 
     def testSnakeTurn(self):
-        snake2 = Snake()
+        board = Board(width=20, height=20, config_str=test_str)
+        snake2 = Snake(board)
         snake2.move(food = False)
         self.assertEqual(snake2.getPositions(), [(0, 1), (0, 2)])
         snake2.move(food = True)
@@ -381,17 +454,30 @@ class TestBoard(unittest.TestCase):
         self.assertEqual(((3,5) in board2._foodPosSet), False)
         self.assertEqual((board2._data[3][5].getFood() is None), True)
 
+    def testBFS(self):
+        teststr = "................"
+        board = Board(width = 4, height = 4, config_str = teststr)
+        snake = Snake(_board = board)
+        start = (0,0)
+        target = (2,2)
+        lst = snake.bfs(start, target)
+        print("LST:")
+        print(lst)
+        print("RE:")
+        print(snake.reconstruct_path_lst(lst, start, target))
+
+
 
 if __name__ == '__main__':
-    # unittest.main()
-    board = Board(width = 20, height = 20, config_str = test_str)
-    board._addFoodToGrid(3,5)
-    board._addFoodToGrid(1,6)
-    board._addFoodToGrid(4,6)
-    snake = Snake(_pos_lst = [(0, 1), (0, 2), (0, 3), (1, 3)], _board = board)
-    g = Game(snake, board)
-    g.run()
-    board._addFoodToGrid(5,7)
+    unittest.main()
+    # board = Board(width = 20, height = 20, config_str = test_str)
+    # board._addFoodToGrid(3,5)
+    # board._addFoodToGrid(1,6)
+    # board._addFoodToGrid(4,6)
+    # snake = Snake(_pos_lst = [(0, 1), (0, 2), (0, 3), (1, 3)], _board = board)
+    # g = Game(snake, board)
+    # g.run()
+    # board._addFoodToGrid(5,7)
 
 
 
