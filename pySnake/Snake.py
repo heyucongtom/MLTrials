@@ -243,7 +243,7 @@ class Snake:
             index_n = self.board.positionToCellIndex(*node)
             neighbors = self.board.getSafeNeighborsList(*node)
             for neighbor in neighbors:
-                if neighbor not in visited:
+                if neighbor not in visited and neighbor != self.head:
                     # For bfs we can skip distance check.
                     index = self.board.positionToCellIndex(*neighbor)
                     dist = prev[index_n][1] + 1
@@ -264,7 +264,30 @@ class Snake:
             prev = node[0]
             path.append(prev)
             index_t = self.board.positionToCellIndex(*prev)
-        return path
+        return path[::-1]
+
+    def get_direction_from_pos(self, scr, dst):
+        
+        """
+        Get the direction from scr to dst.
+        """
+        det_x = dst[0] - scr[0]
+        det_y = dst[1] - scr[1]
+        width = self.board.width
+        height = self.board.height
+        if det_x == 0:
+            if det_y % height == 1:
+                return Direction.Down
+            if det_y % height == height - 1:
+                return Direction.Up
+        if det_y == 0:
+            if det_x % width == 1:
+                return Direction.Right
+            if det_x % width == width - 1:
+                return Direction.Left
+        return -1
+
+
 
 
     def _move_by_direction(self, x, y, direction, speed):
@@ -455,17 +478,29 @@ class TestBoard(unittest.TestCase):
         self.assertEqual((board2._data[3][5].getFood() is None), True)
 
     def testBFS(self):
-        teststr = "................"
-        board = Board(width = 4, height = 4, config_str = teststr)
+        teststr = "........................."
+        board = Board(width = 5, height = 5, config_str = teststr)
         snake = Snake(_board = board)
         start = (0,0)
-        target = (2,2)
+        target = (2,3)
         lst = snake.bfs(start, target)
         print("LST:")
         print(lst)
         print("RE:")
         print(snake.reconstruct_path_lst(lst, start, target))
 
+    def testGetDirectionFromPos(self):
+        teststr = "................"
+        board = Board(width = 4, height = 4, config_str = teststr)
+        snake = Snake(_board = board)
+        self.assertEqual(snake.get_direction_from_pos((0, 1), (1, 1)), Direction.Right)
+        self.assertEqual(snake.get_direction_from_pos((0, 1), (0, 0)), Direction.Up)
+        self.assertEqual(snake.get_direction_from_pos((0, 1), (3, 1)), Direction.Left)
+        self.assertEqual(snake.get_direction_from_pos((0, 1), (0, 2)), Direction.Down)
+        self.assertEqual(snake.get_direction_from_pos((3, 3), (0, 3)), Direction.Right)
+        self.assertEqual(snake.get_direction_from_pos((3, 3), (3, 0)), Direction.Down)
+        self.assertEqual(snake.get_direction_from_pos((3, 3), (2, 3)), Direction.Left)
+        self.assertEqual(snake.get_direction_from_pos((3, 3), (3, 2)), Direction.Up)
 
 
 if __name__ == '__main__':
